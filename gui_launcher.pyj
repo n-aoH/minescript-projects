@@ -4,7 +4,7 @@ from system.pyj.minescript import *
 
 
 
-config_scripts = ["scannerv2 150","findplayers","ls2","getinfo"]
+config_scripts = ["mappings_downloader","reload_mappings","scannerv2 150","findplayers","ls2","getinfo"]
 
 def on_press_key(event):
     global show
@@ -51,6 +51,10 @@ def onclick(name): #If you are using this for a button, place the script you wan
 # To get the name of any screen, make a script that echos screen_name()
 
 # %x, %y, px, py, justifyX, justifyY, width, height, text, text_color, button_color, click_callback, available_screens
+maxsize = 0
+for i in config_scripts:
+    if mc.font.width(i) > maxsize:
+        maxsize = mc.font.width(i)
 count = 0 
 for i in config_scripts: #to dynamically update these objects, simply overwrite the list every time you need to update it.
     #print(i)
@@ -62,11 +66,11 @@ for i in config_scripts: #to dynamically update these objects, simply overwrite 
         -count*5,
         -1,
         0,
-        100,
+        maxsize + 10,
         10,
         i,
         ARGB.color(255, 255, 255, 255),
-        ARGB.color(255, 25, 25, 25),
+        ARGB.color(200, 25, 25, 25),
         onclick(i), #Click Callback here
         ["Crafting", "Creative Inventory"]
     )
@@ -79,7 +83,7 @@ template = lib_hud.textObject(
     ARGB.color(255,255,255,255),
     0,
     90,
-    50,
+    int(maxsize/2),
     5,
     0,
     -1,
