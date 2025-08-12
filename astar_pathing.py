@@ -131,11 +131,44 @@ VISUALIZE_BLOCK = "minecraft:glowstone"
 VISUALIZE_DELAY = 0.05
 
 set_tolerance = 1.9
-
+path = False
 def distance(p1, p2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
 
+def retry_scan(START_POS,END_POS,scan_margin):
+    global path
+    min_x = min(START_POS[0], END_POS[0]) - scan_margin
+    max_x = max(START_POS[0], END_POS[0]) + scan_margin
+    min_y = min(START_POS[1], END_POS[1]) - scan_margin
+    max_y = max(START_POS[1], END_POS[1]) + scan_margin
+    min_z = min(START_POS[2], END_POS[2]) - scan_margin
+    max_z = max(START_POS[2], END_POS[2]) + scan_margin
+
+    # 1. Create a list of all positions to check.
+    positions_to_scan = []
+    for x in range(min_x, max_x + 1):
+        for y in range(min_y, max_y + 1):
+            for z in range(min_z, max_z + 1):
+                positions_to_scan.append([x, y, z])
+
+    # 2. Make a SINGLE API call to get all block data at once.
+    minescript.echo(f"§e[A* Pathfinder] Scanning {len(positions_to_scan)} blocks in one call...")
+    block_names_list = minescript.getblocklist(positions_to_scan)
+
+    # 3. Build the world_data dictionary from the results.
+    world_data = {}
+    for i in range(len(positions_to_scan)):
+        block_name = block_names_list[i]
+        if block_name not in PASASBLE_BLOCKS:
+            # Convert position back to a tuple to use as a dictionary key.
+            position_tuple = tuple(positions_to_scan[i])
+            world_data[position_tuple] = block_name
+    # --- END OF OPTIMISED SCAN ---
+    if main:
+        minescript.echo("§e[A* Pathfinder] Calculating path...")
+    path = find_path(START_POS, END_POS, world_data)
 def pathfind_to(pos1, pos2, pos3, sprint):
+    global path
     END_POS = (pos1, pos2, pos3)
     global last_point
     if main:
@@ -181,8 +214,12 @@ def pathfind_to(pos1, pos2, pos3, sprint):
     path = find_path(START_POS, END_POS, world_data)
 
     if not path:
+        retry_margin = scan_margin+20
         minescript.echo("§c[A* Pathfinder] Failure: No path could be found.")
-        return
+        minescript.echo("§e[A* Pathfinder] Retrying with an increased margin.")
+        retry_scan(START_POS,END_POS,retry_margin)
+        if not path:
+            return
 
     minescript.echo(f"§a[A* Pathfinder] Path found! walking across {len(path)} points...")
     # Note: Visualization is still one command per block and can be slow for long paths.
@@ -227,6 +264,8 @@ def pathfind_to(pos1, pos2, pos3, sprint):
                 else:
                     minescript.player_press_jump(False)
                 if last_checkin > node_timeout: #retry if we're in an infinite loop
+                    minescript.player_press_jump(True)
+                    minescript.player_press_jump(False) #do this just in case it's a small bit of foliage like leaves ( most  common in my testing)
                     minescript.echo(f"§e[A* Pathfinder] Detected as stuck! Retrying!")
                     pathfind_to(pos1,pos2,pos3,sprint)
                     forcequit = True
