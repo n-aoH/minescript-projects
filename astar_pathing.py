@@ -19,6 +19,8 @@ import sys
 IMPASSABLE_BLOCKS = {"minecraft:water", "minecraft:lava", "minecraft:cactus", "minecraft:fire","minecraft:wither_rose"}
 PASASBLE_BLOCKS = {"minecraft:air","minecraft:torch","minecraft:sugar_cane","minecraft:rail","minecraft:detector_rail","minecraft:activator_rail","minecraft:powered_rail","minecraft:short_dry_grass","minecraft:tall_dry_grass","minecraft:tall_grass", "minecraft:short_grass","minecraft:snow","minecraft:soul_torch","minecraft:redstone_wire","minecraft:redstone_torch","minecraft:redstone_wall_torch","minecraft:repeater","minecraft:comparator","minecraft:flower_pot","minecraft:rose_bush","minecraft:poppy","minecraft:allium","minecraft:azalea_bush","minecraft:azure_bluet","minecraft:blue_orchid","minecraft:brown_mushroom","minecraft:closed_eyeblossom","minecraft:cornflower","minecraft:crimson_fungus","minecraft:crimson_roots","minecraft:dandelion","minecraft:fern","minecraft:dead_bush","minecraft:lily_of_the_valley","minecraft:open_eyeblossom","minecraft:orange_tulip","minecraft:oxeye_daisy","minecraft:pink_tulip","minecraft:red_mushroom","minecraft:red_tulip","minecraft:torchflower","minecraft:warped_fungus","minecraft:warped_roots","minecraft:white_tulip","minecraft:acacia_pressure_plate","minecraft:bamboo_pressure_plate","minecraft:birch_pressure_plate","minecraft:cherry_pressire_plate","minecraft:crimson_pressure_plate","minecraft:dark_oak_pressure_plate","minecraft:heavy_weighted_pressure_plate","minecraft:jungle_pressure_plate","minecraft:light_weighted_pressure_plate","minecraft:mangrove_pressure_plate","minecraft:oak_pressure_plate","minecraft:pale_oak_pressure_plate","minecraft:polished_blackstone_pressure_plate","minecraft:spruce_pressure_plate","minecraft:stone_pressure_plate","minecraft:stone_pressure_plate","minecraft:warped_pressure_plate"}
 
+
+node_timeout = 15
 main = __name__ == "__main__"
 
 
@@ -224,7 +226,7 @@ def pathfind_to(pos1, pos2, pos3, sprint):
                     minescript.player_press_jump(True)
                 else:
                     minescript.player_press_jump(False)
-                if last_checkin > 15: #retry if we're in an infinite loop
+                if last_checkin > node_timeout: #retry if we're in an infinite loop
                     minescript.echo(f"§e[A* Pathfinder] Detected as stuck! Retrying!")
                     pathfind_to(pos1,pos2,pos3,sprint)
                     forcequit = True
