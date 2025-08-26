@@ -1,0 +1,77 @@
+#!python
+from system.pyj.minescript import *
+Minecraft = JavaClass("net.minecraft.client.Minecraft")
+ParticleTypes = JavaClass("net.minecraft.core.particles.ParticleTypes")
+
+mc = Minecraft.getInstance()
+
+def getdist(pos1,pos2):
+    x1, y1, z1 = pos1
+    x2, y2, z2 = pos2
+    return abs((abs((x2 - x1)**2) + abs((y2 - y1)**2) + abs((z2 - z1)**2)) ** 0.5)
+
+x,y,z = player_position()
+mc.level.addParticle(ParticleTypes.GLOW, x, y, z, 0.0, 0.0, 0.0) 
+frame = 0
+
+SCANNABLE_ENTITIES = [ #yeah so just add the particle type in the second one for the entity you scan for in the first
+    "entity.minecraft.villager",
+    "entity.minecraft.player", # I know this is why you want this script :p
+    "entity.minecraft.ender_pearl",
+    "entity.minecraft.arrow",
+    "entity.minecraft.item"
+     
+]
+
+SCANNABLE_ENTITIES_PARTICLES = [
+    ParticleTypes.CRIT,
+    ParticleTypes.SMALL_FLAME,
+    ParticleTypes.REVERSE_PORTAL,
+    ParticleTypes.ASH,
+    ParticleTypes.NAUTILUS
+]
+
+SKIP_NAMES = [
+    "Joe"
+]
+
+def drawlinefromAtoB(pos1,pos2,particle):
+    steps = round(getdist(pos1,pos2))
+    multiplier = 1/steps
+    for i in range(steps):
+        tweendist = []
+
+        tweendist.append(pos1[0]*(((steps-(i))*multiplier)) + pos2[0]*((((i))*multiplier)))
+        tweendist.append(pos1[1]*(((steps-(i))*multiplier)) + pos2[1]*((((i))*multiplier)))
+        tweendist.append(pos1[2]*(((steps-(i))*multiplier)) + pos2[2]*((((i))*multiplier)))
+        mc.level.addParticle(particle, tweendist[0], tweendist[1], tweendist[2], 0.0, 0.0, 0.0)
+def lines(event):
+    global frame
+    frame += 1
+    if frame % 60 == 1:
+        startpos = player_position()
+        startpos[1] = startpos[1] + 1.2
+        for i in get_entities():
+            if i.type in SCANNABLE_ENTITIES and i.name not in SKIP_NAMES and i.name != player_name():
+                listpos = SCANNABLE_ENTITIES.index(i.type)
+                endpos = i.position
+                endpos[1] = endpos[1] + 1
+                steps = round(getdist(startpos,endpos)/3)
+                multiplier = 1/steps
+
+                xdist = (startpos[0]-endpos[0])
+                ydist = (startpos[1]-endpos[1])
+                zdist = (startpos[2]-endpos[2])
+                for ii in range(steps):
+                    tweendist = []
+
+                    tweendist.append(startpos[0]*(((steps-(ii))*multiplier)) + endpos[0]*((((ii))*multiplier)))
+                    tweendist.append(startpos[1]*(((steps-(ii))*multiplier)) + endpos[1]*((((ii))*multiplier)))
+                    tweendist.append(startpos[2]*(((steps-(ii))*multiplier)) + endpos[2]*((((ii))*multiplier)))
+
+                    mc.level.addParticle(SCANNABLE_ENTITIES_PARTICLES[listpos], tweendist[0], tweendist[1], tweendist[2], -xdist/100, -ydist/100, -zdist/100)
+                
+            
+    
+if __name__ == "__main__":
+    add_event_listener("render", lines)
