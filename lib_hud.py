@@ -1,4 +1,7 @@
 #!python
+"""
+Made with code from JulianIsLost and razrcraft.
+"""
 from system.pyj.minescript import *
 Minecraft = JavaClass("net.minecraft.client.Minecraft")
 RenderSystem = JavaClass("com.mojang.blaze3d.systems.RenderSystem")
@@ -146,4 +149,5 @@ def on_hud_render(guiGraphics, tickDeltaManager):
 
 
 HudRenderCallback.EVENT.register(HudRenderCallback(on_hud_render))
+
 
