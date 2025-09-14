@@ -1,0 +1,51 @@
+#!python
+from system.pyj.minescript import *
+from lib_ren import WorldRendering
+WorldRenderEvents = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents") # type: ignore
+WorldRenderEventsLast = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$Last") # type: ignore
+
+rendering = []
+
+#def on_world_render_last(context):
+#    if context:
+#        for i in rendering:
+#            pos1 = i[0]
+#            pos2 = i[0][0], i[0][1], i[0][2] 
+#            WorldRendering.wireframe(context,(*pos1,*pos2),i[1],visible_through_blocks=True)
+
+def on_world_render_last(context):
+    clearlist = []
+    for i in rendering:
+        pos1 = i[0]
+        
+        pos2 = i[0][0] + 1, i[0][1] + 1, i[0][2] + 1
+        
+        WorldRendering.wireframe(context, (pos1[0],pos1[1],pos1[2],pos2[0],pos2[1],pos2[2]), i[1],visible_through_blocks=True)
+        i[1] = list(i[1])
+        i[1][3] -= 1
+        
+        if i[1][3] < 0:
+            clearlist.append(i)
+        i[1] = tuple(i[1])
+    for i in clearlist:
+        rendering.remove(i)
+
+        
+
+def get_update(event):
+
+    if "air" in event.new_state:
+        rendering.append(JavaList([event.position,(255,150,150,255)]))
+    elif "lava" in event.new_state:
+        rendering.append(JavaList([event.position,(255,0,0,255)]))
+    elif "water" in event.new_state:
+        rendering.append(JavaList([event.position,(0,0,255,255)]))
+    elif "air" in event.old_state:
+        rendering.append(JavaList([event.position,(0,255,0,255)]))
+    else:
+        rendering.append(JavaList([event.position,(255,255,255,255)]))
+
+callback = ManagedCallback(on_world_render_last)
+WorldRenderEvents.LAST.register(WorldRenderEventsLast(callback))
+add_event_listener("block_update",get_update)
+
