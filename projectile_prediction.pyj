@@ -1,0 +1,212 @@
+#!python
+"""
+Bow assistance by Rere
+with code from dementia_enjoyer
+"""
+from system.pyj.minescript import *
+from lib_ren import WorldRendering, HudRendering
+WorldRenderEvents = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents") # type: ignore
+WorldRenderEventsLast = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$Last") # type: ignore
+Vec3 = JavaClass("net.minecraft.world.phys.Vec3") # type: ignore
+Math = JavaClass("java.lang.Math")
+ParticleTypes = JavaClass("net.minecraft.core.particles.ParticleTypes") # type: ignore
+Minecraft = JavaClass("net.minecraft.client.Minecraft")
+client = Minecraft.getInstance()
+local_player = client.player
+HudRenderCallback = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback")
+mc = Minecraft.getInstance()
+text = None
+
+
+CLEAR = ["air","dandelion","poppy","cornflower","azure_bluet","oxeye_daisy","short_grass","tall_grass","bush","sugar","lilac","vine","ladder","fire"]
+
+TIMESCALE = 2
+DRAG = 1-((.99/400)*TIMESCALE)
+MAX_DIST = 100
+AUTORELEASE = False
+HOLD_TIME = 70
+ARROW_DIM = .25
+
+def get_match_in_list(match,list):
+    for i in list:
+        if i in match:
+            return True
+    return False
+
+
+hold = 0
+nearest_dist = 0
+
+def getdist(x1,y1,z1,x2,y2,z2):
+    return((abs((x1-x2)**2)+abs((y1-y2)**2)+abs((z1-z2)**2))**0.5)
+
+def find_if_touching(pos):
+    global text, hold, nearest_dist
+    nearest_dist = 99999
+    for i in get_entities():
+        if i.name != "arrow":
+            dist = getdist(*pos,*i.position)
+            if dist < nearest_dist:
+                nearest_dist = dist
+    
+    
+    for entity in client.level.entitiesForRendering():
+        entity_name = entity.getName().toString()
+        if not (entity == local_player) and not "arrow" in entity_name and not "experience" in entity_name and not "pearl" in entity_name and not "trident" in entity_name:
+           
+            width = entity.getBbWidth()
+            height = entity.getBbHeight()
+            x = entity.getX()
+            y = entity.getY()
+            z = entity.getZ()
+            halfW = (width * .5) + ARROW_DIM
+
+            minX = x - halfW
+            minY = y - ARROW_DIM
+            minZ = z - halfW
+            maxX = x + halfW
+            maxY = y + height
+            maxZ = z + halfW
+
+            if pos[0] > minX and pos[0] < maxX and pos[1] > minY and pos[1] < maxY and pos[2] > minZ and pos[2] < maxZ:
+                if not "minecraft." in entity.getName().toString():
+                    text = "Locked: "+str(entity.getName().toString().split("literal{")[1].split("}")[0])
+                else:
+                    text = "Locked: "+str(entity.getName().toString().split("minecraft.")[1].split("'")[0])
+                    
+                return True
+    text = None
+    return False
+
+def release():
+    player_press_use(True)
+
+def on_world_render_last(ctx):
+
+    global text, hold, ARROW_DIM
+    hold += 1
+    scanned_blocks = []
+    hands = str(player_hand_items().main_hand)+str(player_hand_items().off_hand)
+    print(hands)
+    flag = False
+    if "crossbow" in hands: # ACTUAL VEL(per tick) * 1.066 #3.3579 OR 3.2
+        flag = True
+        velocity =  (3.3579) 
+        gravity = (1/20)/TIMESCALE
+        ARROW_DIM = .25 
+    elif "bow" in hands:
+        flag = True
+        velocity =  (3.2) 
+        gravity = (1/20)/TIMESCALE
+        ARROW_DIM = .25 
+    elif "pearl" in hands:
+        flag = True
+        velocity =  (1.6) 
+        gravity = (3/100)/TIMESCALE
+        ARROW_DIM = .25 
+    elif "trident" in hands:
+        flag = True
+        velocity =  (2.665) 
+        gravity = (1/20)/TIMESCALE
+        ARROW_DIM = .1 
+    if flag:
+        xyangle = -get_player().yaw
+        yangle = -get_player().pitch
+
+
+
+
+        vel = get_player().velocity
+        xv = Math.sin(Math.toRadians(xyangle)) * velocity * Math.cos(Math.toRadians(yangle)) + vel[0]
+        yv = Math.sin(Math.toRadians(yangle)) * velocity + vel[1]
+        zv = Math.cos(Math.toRadians(xyangle)) * velocity * Math.cos(Math.toRadians(yangle)) + vel[2]
+
+        pos = get_player().position
+        lerp = get_player().lerp_position
+        if lerp:
+            pos[0] = lerp[0]
+            pos[2] = lerp[2]
+        pos[1] += 1.62
+        for i in range(MAX_DIST):
+            pos2 = list(pos)
+
+            pos2[0] += xv/TIMESCALE
+            pos2[1] += yv/TIMESCALE
+            pos2[2] += zv/TIMESCALE
+            xv = xv * DRAG
+            yv = yv * DRAG
+            zv = zv * DRAG
+            yv -= gravity
+            magnitude = getdist(0,0,0,xv,yv,zv)
+            nearest_dist -= magnitude
+
+            WorldRendering.line(ctx, Vec3(*pos), Vec3(*pos2), (255-(i*5), 255-(i*5), 255-(i*5), 255))
+
+            block_pos = list(pos2)
+            block_pos[0] = Math.floor(block_pos[0])
+            block_pos[1] = Math.floor(block_pos[1])
+            block_pos[2] = Math.floor(block_pos[2])
+            if not block_pos in scanned_blocks:
+                block_in_pos = getblock(*block_pos)
+            else:
+                block_pos = "air"
+            scanned_blocks.append(block_pos)
+            touching = False
+            if nearest_dist <= 0:
+                touching = find_if_touching(pos2)
+            if not get_match_in_list(block_in_pos,CLEAR) or touching:
+
+
+                boxpos = []
+                size = .5
+                for i in pos2:
+                    boxpos.append(i-size)
+                size = .5
+                for i in pos2:
+                    boxpos.append(i+size)
+                if touching:
+
+                    WorldRendering.wireframe(ctx,boxpos,(0,255,0,255),True)
+                    if AUTORELEASE and hold > HOLD_TIME:
+                        player_press_use(False)
+                        set_timeout(release,30)
+                        hold = 0
+
+                else:
+                    WorldRendering.wireframe(ctx,boxpos,(255,0,0,255),True)
+                break
+            pos = tuple(pos2)
+    else:
+        text = None
+
+        
+        
+callback = ManagedCallback(on_world_render_last)
+WorldRenderEvents.LAST.register(WorldRenderEventsLast(callback))
+
+def render_hud(ctx,tick):
+    winx = int(mc.getWindow().getGuiScaledWidth())
+    winy = int(mc.getWindow().getGuiScaledHeight())
+    if text:
+        height = mc.font.lineHeight
+        width = mc.font.width(text)
+        
+        dist = 0.5
+        HudRendering.text(ctx, text, (int(round((winx-width-dist)/2)), int(round((winy-height)/2)+10-dist)), (0, 0, 0, 255), obfsucated=False)
+        HudRendering.text(ctx, text, (int(round((winx-width-dist)/2)), int(round((winy-height)/2)+10+dist)), (0, 0, 0, 255), obfsucated=False)
+        HudRendering.text(ctx, text, (int(round((winx-width+dist)/2)), int(round((winy-height)/2)+10-dist)), (0, 0, 0, 255), obfsucated=False)
+        HudRendering.text(ctx, text, (int(round((winx-width+dist)/2)), int(round((winy-height)/2)+10+dist)), (0, 0, 0, 255), obfsucated=False)
+
+        HudRendering.text(ctx, text, (int((winx-width)/2), int((winy-height)/2)+10), (0, 255, 0, 255), obfsucated=False)
+
+callback = ManagedCallback(render_hud)
+HudRenderCallback.EVENT.register(HudRenderCallback(callback))
+
+def toggle(event):
+    global AUTORELEASE
+    if event.action == 1 and event.button == 0: #LMB
+        if "bow" in str(player_hand_items().main_hand) and not screen_name():
+            AUTORELEASE = not AUTORELEASE
+            echo("Autorelease: "+str(AUTORELEASE))
+
+add_event_listener("mouse",toggle)
