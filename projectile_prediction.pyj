@@ -87,7 +87,6 @@ def on_world_render_last(ctx):
     hold += 1
     scanned_blocks = []
     hands = str(player_hand_items().main_hand)+str(player_hand_items().off_hand)
-    print(hands)
     flag = False
     if "crossbow" in hands: # ACTUAL VEL(per tick) * 1.066 #3.3579 OR 3.2
         flag = True
@@ -208,5 +207,6 @@ def toggle(event):
         if "bow" in str(player_hand_items().main_hand) and not screen_name():
             AUTORELEASE = not AUTORELEASE
             echo("Autorelease: "+str(AUTORELEASE))
+
 
 add_event_listener("mouse",toggle)
