@@ -38,7 +38,7 @@ def get_update(event):
         rendering.append(JavaList([event.position,(255,150,150,255)]))
     elif "lava" in event.new_state:
         rendering.append(JavaList([event.position,(255,0,0,255)]))
-    elif "water" in event.new_state:
+    elif "minecraft:water" in event.new_state:
         rendering.append(JavaList([event.position,(0,0,255,255)]))
     elif "air" in event.old_state:
         rendering.append(JavaList([event.position,(0,255,0,255)]))
@@ -48,4 +48,5 @@ def get_update(event):
 callback = ManagedCallback(on_world_render_last)
 WorldRenderEvents.LAST.register(WorldRenderEventsLast(callback))
 add_event_listener("block_update",get_update)
+
 
