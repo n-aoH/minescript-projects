@@ -257,7 +257,7 @@ def onchat(event):
                     print("key values can be found here by typing '?docs keys'")
                 else:
                     print("Show Keys toggled: OFF")
-            if command[2] == "show_mouse":
+            if command[1] == "show_mouse":
                 show_mouse = togglestate
         if command[0] == "docs":
             acceptable_args = ["keys","minescript","minescript-ce","msp","pyjinn","mappings","discord","mapping_info"]
@@ -346,3 +346,4 @@ add_event_listener("key",get_update)
 add_event_listener("mouse",get_update)
 
 add_event_listener("outgoing_chat_intercept",onchat,prefix="?")
+
