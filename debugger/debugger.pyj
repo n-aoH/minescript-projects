@@ -1,0 +1,348 @@
+#!python
+from system.pyj.minescript import *
+
+from lib_ren import WorldRendering
+
+WorldRenderEvents = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents") # type: ignore
+WorldRenderEventsLast = JavaClass("net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents$Last") # type: ignore
+Math = JavaClass("java.lang.Math")
+Runtime = JavaClass("java.lang.Runtime")
+Minecraft = JavaClass("net.minecraft.client.Minecraft")
+mc = Minecraft.getInstance()
+Component = JavaClass("net.minecraft.network.chat.Component")
+
+
+dump_to_chat = True
+
+
+render_through_walls = False
+render_block_updates = False
+render_chunk_updates = False
+show_keys = False
+show_mouse = False
+
+name = get_player().name
+block_update_rendering = []
+
+
+
+
+###MSP is currently not available in pyjinn, so here it is hard coded###
+
+def get_clipboard():
+    return mc.keyboardHandler.getClipboard()
+
+def set_clipboard(string: str):
+    mc.keyboardHandler.setClipboard(string)
+
+def set_actionbar(text: str, tinted: bool = False) -> None:
+            mc.gui.setOverlayMessage(Component.literal(text), tinted)
+### END of MSP ###
+
+
+def get_magnitude(x,y,z):
+    return ((x**2)+(y**2)+(z**2))**.5
+
+
+def dump(string):
+    if dump_to_chat:
+        print(string)
+    else:
+        log(string)
+
+
+entity_attributes = ["name","type","uuid","health","id","local","position","lerp_position","yaw","pitch","velocity","passengers","nbt","magnitude"]
+def attribute_from_string(object,string): #no get attr() :(
+
+    if string == "name":
+        return(object.name)
+    if string == "type":
+        return(object.type)
+    if string == "uuid":
+        return(object.uuid)
+    if string == "id":
+        return(object.id)
+    if string == "health":
+        return(object.health)
+    if string == "local":
+        return(object.local)
+    if string == "position":
+        return(object.position)
+    if string == "lerp_position":
+        return(object.lerp_position)
+    if string == "yaw":
+        return(object.yaw)
+    if string == "pitch":
+        return(object.pitch)
+    if string == "velocity":
+        return(object.velocity)
+    if string == "passengers":
+        return(object.passengers)
+    if string == "nbt":
+        return(object.nbt)
+    if string == "magnitude":
+        
+        return(get_magnitude(*object.velocity))
+        
+    if string == "all":
+        return(object)
+    
+    
+
+def onchat(event):
+    
+    text = event.message
+    text = text.lstrip("?")
+    if "%v" in text:
+        text = text.replace("%v", get_clipboard())
+    command = text.split()
+    command = JavaList(list(command))
+
+    if len(command) == 0:
+        print("debugger syntax: ?print, ?dump, ?copy, ?log, ?grab")
+    else:
+        for index, cmd in enumerate(command):
+            if cmd == "%p":
+                pos = get_player().position
+                pos[0] = Math.floor(pos[0])
+                pos[1] = Math.floor(pos[1])
+                pos[2] = Math.floor(pos[2])
+                command[index] = (str(pos))
+
+            if cmd == "%a":
+                plr = get_player()
+                angle = str(plr.yaw)+", "+str(plr.pitch)
+
+                command[index] = (str(angle))
+            if "%g" in cmd:
+                if "%g:" in cmd:
+                    entity_type = str(cmd.lstrip("%g:").split(".")[0])
+                else:
+                    entity_type = "."
+                if "." in cmd:
+                    attribute = cmd.split(".")[1]
+                else:
+                    attribute = "all"
+                for i in get_entities(sort="nearest"):
+                    if i.name != name and entity_type in str(i.type):
+                        command[index] = str(attribute_from_string(i,attribute))
+
+                        break
+            if "%s" in cmd:
+                if "." in cmd:
+                    attribute = cmd.split(".")[1]
+                else:
+                    attribute = "uuid"
+                command[index] = str(attribute_from_string(get_player(),attribute))
+            
+
+
+        if command[0] == "copy":
+
+            del command[0]
+            set_clipboard(" ".join(command))
+        if command[0] == "print":
+            del command[0]
+            print(" ".join(command))
+        if text.startswith("log"):
+            log(" ".join(command))
+        if command[0] == "uuid":
+            if len(command) > 1:
+                uuid = command[1]
+                found = False
+                for i in get_entities():
+                    if str(i.uuid) == uuid:
+                        found = True
+                        dump(i)
+                if not found:
+                    dump("Entity "+uuid+" not found! (died or exited rendering)")
+            else:
+                print("syntax: ?uuid <UUID>")
+        if command[0] == "dump":
+            attribute = "all"
+            if len(command) == 1:
+                print("args: entity, inventory")
+                print("entity args: <entity:type(optional).attribute(optional) ex: ?dump entity:arrow.magnitude or ?dump player.name")
+            elif "entity" in command[1]:
+                
+                cmd = command[1]
+                
+                if "entity:" in cmd:
+                    entity_type = str(cmd.lstrip("entity:").split(".")[0])
+                else:
+                    entity_type = "."
+                if "." in cmd:
+                
+                    attribute = cmd.split(".")[1]
+                else:
+                    attribute = "all"
+                for i in get_entities(sort="nearest"):
+                    if entity_type in str(i.type):
+                        dump(str(attribute_from_string(i,attribute)))
+
+                        
+                if command[1] == "entity": 
+                        if len(command) > 2:
+                            if len(command) == 3 and command[2] in entity_attributes:
+                                attribute = command[2]
+                                entity_type = "."
+                            else:
+                                entity_type = command[2]
+                        
+                        else:
+                            entity_type = "." #everything
+                        if len(command) > 3:
+                            attribute = command[3]
+
+                else:
+                    entity_type = "."
+                
+                #found = False
+                #for i in get_entities():
+                #    if entity_type in i.type.lower():
+                #        dump(attribute_from_string(i,attribute))
+                #        found = True
+                #if not found:
+                #    dump("No entity with type: "+entity_type+" found! (typo, died, or exited rendering)")
+
+            elif command[1] == "inv" or command[1] == "inventory": #covers inv, inventory
+                dump(player_inventory())
+
+
+
+        if command[0] == "grab":
+            entity = player_get_targeted_entity()
+            if entity:
+                set_clipboard(entity.uuid)
+                print("grabbed: "+str(entity.uuid)+ " ("+str(entity.name)+")")
+            else:
+                block = player_get_targeted_block()
+                if block:
+                    print(block)
+                else:
+                    print("No entity / block focused!")
+                    print("grab is also accessible inside of functions with %g")
+                    print("(supports: %g %g:type, %g.attribute, %g:type.attribute)")
+        
+        if command[0] == "toggle":
+            global render_block_updates, render_through_walls, render_chunk_updates, show_keys,show_mouse
+            if len(command) > 2:
+                
+                togglestate = command[2].lower() == "true" or command[2].lower() == "t"
+            else:
+                togglestate = True
+                print("Please supply true/false. This command is treated as true.")
+            if command[1] == "show_block_updates":
+                render_block_updates = togglestate
+                if togglestate:
+                    print("Show Block Updates toggled: ON")
+                else:
+                    print("Show Block Updates toggled: OFF")
+            if command[1] == "render_through_walls":
+                if togglestate:
+                    print("Updates now rendered through walls.")
+                else:
+                    print("Updates no longer rendered through walls.")
+                render_through_walls = togglestate
+            if command[1] == "show_chunk_updates":
+                render_chunk_updates = togglestate
+                if togglestate:
+                    print("Show Chunk Updates toggled: ON")
+                else:
+                    print("Show Chunk Updates toggled: OFF")
+            if command[1] == "show_keys":
+                show_keys = togglestate
+                if togglestate:
+                    print("Show Keys toggled: ON")
+                    print("key values can be found here by typing '?docs keys'")
+                else:
+                    print("Show Keys toggled: OFF")
+            if command[2] == "show_mouse":
+                show_mouse = togglestate
+        if command[0] == "docs":
+            acceptable_args = ["keys","minescript","minescript-ce","msp","pyjinn","mappings","discord","mapping_info"]
+            if len(command) != 2:
+                print("doc pages: keys, minescript, minescript-ce, msp, pyjinn, mappings, discord","mapping_info")
+            else:
+                arg = command[1]
+                if command[1] in acceptable_args:
+                    execute(f"\\debugger_py_handler {arg}")
+                else:
+                    print("Doc page not found.")
+        if command[0] == "info":
+            if len(command) == 2:
+                if command[1].lower() == "python":
+                    execute("\\debugger_py_handler pyinfo")
+                if command[1].lower() == "third_party_modules":
+                    execute("\\debugger_py_handler modules")
+            else:
+                print("args: python, third_party_modules")
+        if command[0] == "=":
+            del command[0]
+            arg = "".join(command)
+            execute(f"\\debugger_py_handler calc {arg}")
+            
+            
+
+
+def on_world_render_last(context):
+    if render_block_updates or render_chunk_updates:
+        clearlist = []
+        for i in block_update_rendering:
+
+
+            WorldRendering.wireframe(context, (i[0][0],i[0][1],i[0][2],i[1][0],i[1][1],i[1][2]), i[2],visible_through_blocks=render_through_walls)
+            i[2] = list(i[2])
+            i[2][3] -= 1
+
+            if i[2][3] < 0:
+                clearlist.append(i)
+            i[2] = tuple(i[2])
+        for i in clearlist:
+            block_update_rendering.remove(i)
+
+        
+
+def get_update(event):
+
+    if str(event.type) == "block_update":
+            if render_block_updates:
+                pos1 = event.position
+                pos2 = (event.position[0] + 1, event.position[1] + 1, event.position[2] + 1)
+                if "air" in event.new_state:
+                    block_update_rendering.append(JavaList([pos1,pos2,(255,150,150,255)]))
+                elif "lava" in event.new_state:
+                    block_update_rendering.append(JavaList([pos1,pos2,(255,0,0,255)]))
+                elif "minecraft:water" in event.new_state:
+                    block_update_rendering.append(JavaList([pos1,pos2,(0,0,255,255)]))
+                elif "air" in event.old_state:
+                    block_update_rendering.append(JavaList([pos1,pos2,(0,255,0,255)]))
+                else:
+                    block_update_rendering.append(JavaList([pos1,pos2,(255,255,255,255)]))
+    elif str(event.type) == "chunk":
+        if render_chunk_updates: 
+            if event.loaded:
+                color = (0,255,0,255)
+            else:
+                color = (255,0,0,255)
+            pos1 = (event.x_min,-50,event.z_min)
+            pos2 = (event.x_max,300,event.z_max)
+            block_update_rendering.append(JavaList([pos1,pos2,color]))
+    elif str(event.type) == "key":
+        if show_keys:
+            bar = "Key: "+str(event.key)+" Action: "+str(event.action)
+            set_actionbar(str(bar))
+    elif str(event.type) == "mouse":
+        if show_mouse:
+            bar = "Button: "+str(event.button)+" Action: "+(str(event.action))
+            set_actionbar(str(bar))
+    
+
+callback = ManagedCallback(on_world_render_last)
+WorldRenderEvents.LAST.register(WorldRenderEventsLast(callback))
+add_event_listener("block_update",get_update)
+add_event_listener("chunk",get_update)
+add_event_listener("key",get_update)
+add_event_listener("mouse",get_update)
+
+add_event_listener("outgoing_chat_intercept",onchat,prefix="?")
