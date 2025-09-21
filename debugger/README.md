@@ -1,6 +1,6 @@
 # Debugger
 
-A debugging program for the Minecraft mod Minescript. Developed using code from [razrcraft](https://github.com/R4z0rX/minescript-scripts/tree/main). More commands, info, and operators are coming.
+A debugging program for the Minecraft mod Minescript. Developed using code and information from [razrcraft](https://github.com/R4z0rX/minescript-scripts/tree/main). More commands, info, and operators are coming.
 
 ## Requirements:
 
