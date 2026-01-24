@@ -1,8 +1,11 @@
 import dearpygui.dearpygui as dpg
-import os
+from os import chdir
+import threading
+from time import sleep
+
 
 try:
-    os.chdir("minescript") #Maybe they'll update it in the future idk
+    chdir("minescript") #Maybe they'll update it in the future idk
 except:
     pass
 
@@ -13,6 +16,40 @@ FONT = "FunnelSans-Medium.ttf"
 FONT_SIZE = 20
 height = 900
 width = 600
+SLEEP_TIME = .5
+TOGGLE_HOVER = True
+
+
+HOSTILE_MOBCAP_MOBS = [
+    "entity.minecraft.blaze",
+    "entity.minecraft.creeper",
+    "entity.minecraft.drowned",
+    "entity.minecraft.elder_guardian",     
+    "entity.minecraft.endermite",
+    "entity.minecraft.evoker",
+    "entity.minecraft.ghast",
+    "entity.minecraft.guardian",
+    "entity.minecraft.hoglin",
+    "entity.minecraft.husk",
+    "entity.minecraft.magma_cube",
+    "entity.minecraft.phantom",
+    "entity.minecraft.piglin_brute",
+    "entity.minecraft.pillager",
+    "entity.minecraft.ravager",
+    "entity.minecraft.shulker",
+    "entity.minecraft.silverfish",
+    "entity.minecraft.skeleton",
+    "entity.minecraft.stray",
+    "entity.minecraft.vex",
+    "entity.minecraft.vindicator",
+    "entity.minecraft.warden",
+    "entity.minecraft.witch",
+    "entity.minecraft.wither_skeleton",
+    "entity.minecraft.zoglin",
+    "entity.minecraft.zombie",
+    "entity.minecraft.zombie_villager",
+    "entity.minecraft.zombified_piglin",
+]
 
 
 dpg.create_context()
@@ -24,16 +61,21 @@ try:
 
     dpg.create_viewport(title="Mob List",height=height,width=width)
 except:
-    pass
+    print("This script uses a custom font. Please download it and put it in your minescript folder.")
+    exit()
 
 
 
 
 def resize_root():
     w, h = dpg.get_viewport_width(), dpg.get_viewport_height()
+
+    if decorated:
+        w -= 14
+        h -= 39
     dpg.set_item_pos("root", (0,0))
-    dpg.set_item_width("root", w-14)
-    dpg.set_item_height("root", h-39)
+    dpg.set_item_width("root", w)
+    dpg.set_item_height("root", h)
 
 
 def checkbox_cb(sender, app_data, user_data):
@@ -140,7 +182,7 @@ def update_nodes():
                 
                 
                 
-        last_entities = entities()
+        
     
 
 with dpg.window(label="Main Window", height=height, width=width, no_title_bar=True, no_move= True, tag="root"):
@@ -158,24 +200,57 @@ with dpg.window(label="Main Window", height=height, width=width, no_title_bar=Tr
                 
 
 
+
 dpg.setup_dearpygui()
 dpg.show_viewport()
 
 dpg.set_viewport_always_top(True)
 
+def is_viewport_hovered():
+    mx, my = dpg.get_mouse_pos(local=True)
+    vw, vh = dpg.get_viewport_width(), dpg.get_viewport_height()
+    
+    return not (
+        (mx < -30 or mx > vw + 10) and
+        (my < -30 or my > vh + 10) 
+    ) or not TOGGLE_HOVER
+
+decorated = False
+
+def update_decoration():
+    global decorated
+
+    hovered = is_viewport_hovered()
+
+    if hovered and not decorated:
+        dpg.set_viewport_decorated(True)
+        decorated = True
+    elif not hovered and decorated:
+        dpg.set_viewport_decorated(False)
+        decorated = False
 
 
-tick = 0
+
+
+def update_thread():
+    while True:
+        update_nodes()
+        sleep(SLEEP_TIME)
+        
+
+threading.Thread(target=update_thread,daemon=True).start()
+
 while dpg.is_dearpygui_running():
-    tick += 1
-    dpg.set_value("entity label",f"Entities: {len(entities())}")
+    
+    cap = 0
+    for entity in entities():
+        if entity.type in HOSTILE_MOBCAP_MOBS:
+            cap += 1
+    dpg.set_value("entity label",f"Entities: {len(entities())}   Players: {len(players())}   Hostile: {cap}")
     resize_root()
     dpg.render_dearpygui_frame()
 
-    if tick > 60:
-        update_nodes()
-        tick = 0
+    update_decoration()
     
-    # resizing the top window part
 
 dpg.destroy_context()
