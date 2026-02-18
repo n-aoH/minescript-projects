@@ -92,20 +92,34 @@ ctrl = False
 
 last_deletion = ""
 last_line = 0
+SAVING = False
 def keylistener(event):
-    global cursor_line, last_screen, shifting, ctrl, last_line, last_deletion
+    global cursor_line, last_screen, shifting, ctrl, last_line, last_deletion, SAVING
     #echo(event)
     if last_screen and not "Chat" in str(screen_name()):
-        save()
-        echo("\nSaved!")
-        exit(0)
+        SAVING = True
+        #save()
+        echo("\nSave? Y - Yes | N - No")
+        #exit(0)
 
 
 
     flag = last_screen
 
     if not flag:
-        render()
+        if SAVING:
+            flag = False
+            echo("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSave File? Y - Yes | N - No")
+            if "y" in chat_input() or "Y" in chat_input():
+                save()
+                echo("Done!")
+                exit(0)
+            elif "n" in chat_input() or "N" in chat_input():
+                echo("Exited.")
+                exit(0)
+            return
+        else:
+            render()
     if event.key == 265:
         if event.action == 1:
             cursor_line -= 1
