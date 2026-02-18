@@ -1,0 +1,194 @@
+from system.pyj.minescript import *
+from system.pyj.sys import exit
+
+File = JavaClass("java.io.File")
+Scanner = JavaClass("java.util.Scanner")
+FileWriter = JavaClass("java.io.FileWriter")
+BufferedWriter = JavaClass("java.io.BufferedWriter")
+JsonPrimitive = JavaClass("com.google.gson.JsonPrimitive")
+
+
+
+LINES = 19
+root_dir: str = "minescript"
+base_file: str = "/temp.txt"
+if len(sys.argv) > 1:
+    base_file: str = root_dir + "/" + sys.argv[1]
+else:
+    echo("No file name selected. (Will open settings later)")
+    
+    exit(1)
+
+def open_file(filename: str=base_file, appends: bool=False):
+    global bufferedWriter
+    
+    try:
+        fileWriter = FileWriter(filename, appends) # 'False' overwrites, 'True' appends
+        bufferedWriter = BufferedWriter(fileWriter)
+    except Exception as e:
+        print("Error writing to log file: " + e.getMessage())
+
+def close_file():
+    bufferedWriter.close()
+
+def log2file(text: str):
+    try:
+        bufferedWriter.write(text)
+        bufferedWriter.newLine()
+    except Exception as e:
+        print("Error writing to log file: " + e.getMessage())
+
+def check_file(path) -> bool:
+    
+    f = File(path)
+    return f.exists()
+
+def read_file(path):
+    f = File(path)
+    sc = Scanner(f)
+    lines = []
+    while sc.hasNextLine():
+        raw = sc.nextLine().rstrip("\n")
+        lines.append(raw)
+    return lines
+cursor_line = 0
+cursor_char = 0
+def render():
+    window = ""
+    cnt = 0
+    max_cnt = len(str(len(lines)))
+    adjusted_line = cursor_line
+    for i in range(20):
+        window += "\n"
+    for line in lines:
+        if cnt > adjusted_line -20 and cnt < adjusted_line + 10:
+            render_cnt = str(cnt)
+            for i in range((max_cnt-len(str(cnt)))):
+                render_cnt = "-"+render_cnt
+    
+            if cursor_line == cnt:
+                appended = " <"
+            else:
+                appended = ""
+    
+            
+            window +=  render_cnt + "|" + line + appended + "\n"
+    
+    
+    
+        cnt += 1
+    window += f" Lines: {len(lines)} Name: {base_file}"
+
+    echo(window)
+
+def safe_set():
+    set_chat_input(lines[cursor_line])
+
+def safe_write():
+    lines[cursor_line] = chat_input()[0]
+last_screen = False
+shifting = False
+ctrl = False
+
+last_deletion = ""
+last_line = 0
+def keylistener(event):
+    global cursor_line, last_screen, shifting, ctrl, last_line, last_deletion
+    #echo(event)
+    if last_screen and not "Chat" in str(screen_name()):
+        save()
+        echo("\nSaved!")
+        exit(0)
+
+
+
+    flag = last_screen
+
+    if not flag:
+        render()
+    if event.key == 265:
+        if event.action == 1:
+            cursor_line -= 1
+            if cursor_line < 0:
+                cursor_line = 0
+            render()
+            set_timeout(safe_set,0)
+            flag = False
+    elif event.key == 264:
+        if event.action == 1:
+            cursor_line += 1
+            if cursor_line > len(lines)-1:
+                lines.append("")
+            render()
+            set_timeout(safe_set,0)
+            flag = False
+        
+    elif event.key == 59 and not shifting:
+        if event.action == 1:
+            if cursor_line != 0:
+                last_deletion = lines[cursor_line]
+                last_line = cursor_line
+                lines.pop(cursor_line)
+                cursor_line -= 1
+            render()
+            set_timeout(safe_set,0)
+            flag = False
+    
+    if ctrl:
+        flag=False
+        if event.key == 90 and event.action == 1:
+            lines.insert(last_line,last_deletion)
+            set_chat_input(last_deletion)
+            cursor_line += 1
+            render()
+            
+        if event.key == 32 and event.action == 1:
+            lines.insert(cursor_line,"")
+            set_chat_input("")
+            render()
+            
+    if flag:
+        set_timeout(safe_write,0)
+        render()
+    
+    if ":exit" in chat_input()[0]:
+        echo("Exiting without saving!")
+        exit(1)
+    last_screen = "Chat" in str(screen_name())
+
+    if event.key == 340:
+        shifting = event.action != 0
+    if event.key == 341:
+        ctrl = event.action != 0
+
+add_event_listener("key",keylistener)
+lines = []
+def load():
+    global lines
+    if check_file(base_file):
+        lines = read_file(base_file)
+        if len(lines) == 0:
+            lines = [""]
+        return True
+    else:
+        lines = [""]
+        return False
+    
+
+def save(file: str = base_file):
+
+    open_file()
+
+    for line in lines:
+        log2file(line)
+    
+    close_file()
+
+last_lines = []
+
+new_file = not load()
+if new_file:
+    echo("New File Created!")
+else:
+    echo("Successfully Loaded!")
+
