@@ -1,0 +1,159 @@
+from minescript import *
+
+
+Gizmos          = JavaClass("net.minecraft.gizmos.Gizmos")
+GizmoStyle      = JavaClass("net.minecraft.gizmos.GizmoStyle")
+TextGizmo_Style = JavaClass("net.minecraft.gizmos.TextGizmo$Style")
+BlockPos        = JavaClass("net.minecraft.core.BlockPos")
+Vec3            = JavaClass("net.minecraft.world.phys.Vec3")
+AABB            = JavaClass("net.minecraft.world.phys.AABB")
+Direction       = JavaClass("net.minecraft.core.Direction")
+ARGB            = JavaClass("net.minecraft.util.ARGB")
+
+minecraft = JavaClass("net.minecraft.client.Minecraft")
+instance = minecraft.getInstance()
+
+player_uuid = get_player().uuid
+SETTING_KEY = 56 # ALT
+
+# TAKEN FROM MSP
+
+Minecraft = JavaClass("net.minecraft.client.Minecraft")
+Minescript = JavaClass("net.minescript.common.Minescript")
+mappings = Minescript.mappingsLoader.get()
+mc = Minecraft.getInstance()
+Component = JavaClass("net.minecraft.network.chat.Component")
+
+
+def _get_private_field(clazz, field_name, super_class: bool=False): # type: ignore
+    if super_class:
+        c = clazz.getClass().getSuperclass()
+    else:
+        c = clazz.getClass()
+    f = mappings.getRuntimeFieldName(c, field_name)
+    field = c.getDeclaredField(f)
+    field.setAccessible(True)
+    return field.get(clazz)
+
+@staticmethod
+def get_actionbar() -> str | None:
+    """
+    Retrieves and clears the current action bar (overlay message) string from the Minecraft GUI.
+    Returns:
+        str or None: The current overlay message string if present, otherwise None.
+    """
+    overlayMessageString = _get_private_field(mc.gui, "overlayMessageString")
+    if overlayMessageString is not None:
+        overlayMessageString = overlayMessageString.getString()
+    return overlayMessageString  # type: ignore
+@staticmethod
+def set_actionbar(text: str, tinted: bool = False) -> None:
+    """
+    Sets the actionbar to the specified text.
+    Args:
+        text (str): The text to set as the actionbar.
+    Returns:
+        None
+    """
+    mc.gui.setOverlayMessage(Component.literal(text), tinted)
+
+
+# 56 -> alt
+# 69 -> E
+# 37
+TRAIL_FADEOUT = 500  # In ms
+bindings = {
+    "BOX_KEY": 18, #E
+    "KEYS_KEY": 39, #;
+    "TOP_KEY": 20, #T
+    "TRAIL_KEY": 32, #D
+    "BLOCK_UPDATE_KEY": 31 #S
+    } 
+
+keys = {SETTING_KEY: False}
+
+settings = {"Box": False,
+            "Keys": False,
+            "Top": True,
+            "Trails": False,
+            "Block Updates": False}
+def on_key(event):
+    global keys
+    keys[event.scan_code] = event.action != 0
+    if keys[SETTING_KEY]:
+        if event.scan_code == bindings["BOX_KEY"] and event.action == 1: # E
+            settings["Box"] = not settings["Box"]
+        if event.scan_code == bindings["KEYS_KEY"] and event.action == 1:
+            settings["Keys"] = not settings["Keys"]
+        if event.scan_code == bindings["TOP_KEY"] and event.action == 1:
+            settings["Top"] = not settings["Top"]
+        if event.scan_code == bindings["TRAIL_KEY"] and event.action == 1:
+            settings["Trails"] = not settings["Trails"]
+        if event.scan_code == bindings["BLOCK_UPDATE_KEY"] and event.action == 1:
+            settings["Block Updates"] = not settings["Block Updates"]
+    if settings["Keys"]:
+        key = event.scan_code
+        action = event.action
+        set_actionbar(fr"Key: {key}: {action}")
+
+last_entities = []
+def on_render(event):
+    global last_entities
+    color       = ARGB.color(255, 0, 200, 255)
+    style       = GizmoStyle.stroke(color)
+    if settings["Box"]:
+        level = instance.level
+        
+
+        for entity in level.entitiesForRendering():
+            ent: "net.minecraft.world.entity.Entity" = entity
+            if ent.getStringUUID() != player_uuid:
+
+                box = Gizmos.cuboid(ent.getBoundingBox(), style)
+                if settings["Top"]:
+                    box.setAlwaysOnTop()
+    
+    if settings["Trails"] and last_entities != get_entities():
+        for entity in get_entities():
+            for e in last_entities:
+                if entity.uuid == e.uuid:
+                    line = Gizmos.line(Vec3(*entity.position), Vec3(*e.position), color).persistForMillis(TRAIL_FADEOUT).fadeOut()
+                    if settings["Top"]:
+                        line.setAlwaysOnTop()
+    last_entities = get_entities()
+
+default_color = ARGB.color(255, 0, 0, 0)
+water_color = ARGB.color(255, 0, 200, 255)
+leaf_color = ARGB.color(255, 100, 255, 100)
+break_color = ARGB.color(255, 255, 255, 255)
+lava_color = ARGB.color(255, 255, 100, 100)
+redstone_color = ARGB.color(255,255, 200, 200)
+
+def on_block_update(event):
+    color       = ARGB.color(255, 0, 200, 255)
+    style       = GizmoStyle.stroke(color)
+
+
+    if settings["Block Updates"]:
+
+        selected_color = default_color
+        if "water[" in event.old_state:
+            selected_color = water_color
+        if "lava" in event.old_state:
+            selected_color = lava_color
+        if "leave" in event.old_state:
+            selected_color = leaf_color
+        if "air" in event.new_state:
+            selected_color = break_color
+        if "redstone" in event.new_state:
+            selected_color = redstone_color
+        
+        style  = GizmoStyle.stroke(selected_color)
+        box = Gizmos.cuboid(BlockPos(*event.position), style).persistForMillis(TRAIL_FADEOUT).fadeOut()
+        if settings["Top"]:
+            box.setAlwaysOnTop()
+        #print(event)
+
+add_event_listener("block_update",on_block_update)
+add_event_listener("render",on_render)
+add_event_listener("key", on_key)
